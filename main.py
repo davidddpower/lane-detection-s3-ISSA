@@ -5,13 +5,11 @@ import os
 
 video_file = 'Lane Detection Test Video 01.mp4'
 
-# Verific dacă fișierul video există
 if not os.path.exists(video_file):
     exit()
 
 cam = cv2.VideoCapture(video_file)
 
-# Initialize lane points for validation (Exercise 10c)
 left_top = (0, 0)
 left_bottom = (0, 0)
 right_top = (0, 0)
@@ -130,17 +128,28 @@ while True:
     
     left_top, left_bottom = get_line_points(left_coeffs, height, width, left_top, left_bottom)
     right_top, right_bottom = get_line_points(right_coeffs, height, width, right_top, right_bottom)
-    
-    lines_frame = cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
-    
-    cv2.line(lines_frame, left_top, left_bottom, (200, 0, 0), 5)
-    cv2.line(lines_frame, right_top, right_bottom, (100, 0, 0), 5)
-    
-    cv2.line(lines_frame, (width // 2, 0), (width // 2, height), (255, 0, 0), 1)
-    
-    cv2.imshow('Lines', lines_frame)
 
-    cv2.imshow('Original', frame)
+    # Exercitiul 11
+    matrix_inverse = cv2.getPerspectiveTransform(frame_bounds, trapezoid_bounds_float)
+
+    left_lane_frame = np.zeros((height, width), dtype=np.uint8)
+    cv2.line(left_lane_frame, left_top, left_bottom, 255, 3)
+    left_lane_transformed = cv2.warpPerspective(left_lane_frame, matrix_inverse, (width, height))
+    left_coords = np.argwhere(left_lane_transformed > 0)
+
+    right_lane_frame = np.zeros((height, width), dtype=np.uint8)
+    cv2.line(right_lane_frame, right_top, right_bottom, 255, 3)
+    right_lane_transformed = cv2.warpPerspective(right_lane_frame, matrix_inverse, (width, height))
+    right_coords = np.argwhere(right_lane_transformed > 0)
+
+    output_frame = frame.copy()
+    if len(left_coords) > 0:
+        output_frame[left_coords[:, 0], left_coords[:, 1]] = (50, 50, 250)
+    if len(right_coords) > 0:
+        output_frame[right_coords[:, 0], right_coords[:, 1]] = (50, 250, 50)
+
+    # Exercitiul 12
+    cv2.imshow('Lane Detection', output_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

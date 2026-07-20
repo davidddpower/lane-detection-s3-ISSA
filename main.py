@@ -60,7 +60,22 @@ while True:
 
     #Exercitiul 6
     blur_frame = cv2.blur(top_down, ksize=(3, 3))
-    cv2.imshow('Blur version', blur_frame)
+
+    #Exercitiul 7
+    sobel_matrix = np.float32([[-1, -2, -1],
+                                 [0, 0, 0],
+                                 [1, 2, 1]])
+
+    sobel_horizontal = np.transpose(sobel_matrix)
+    blur_frame_float = np.float32(blur_frame)
+
+    sobelV_result = cv2.filter2D(blur_frame_float, -1, sobel_matrix)
+    sobelH_result = cv2.filter2D(blur_frame_float, -1, sobel_horizontal)
+
+    cv2.imshow('Sobel Vertical', cv2.convertScaleAbs(sobelV_result))
+    cv2.imshow('Sobel Horizontal', cv2.convertScaleAbs(sobelH_result))
+    combined = np.sqrt(sobelV_result ** 2 + sobelH_result ** 2)
+    cv2.imshow('Sobel Version', cv2.convertScaleAbs(combined))
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

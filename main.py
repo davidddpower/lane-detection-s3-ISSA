@@ -25,7 +25,10 @@ while True:
     if ret is False:
         break
 
-    cv2.imshow('Original', frame)
+    # Exercitiul 2
+    height, width, _ = frame.shape
+    frame = cv2.resize(frame, (width // 2, height // 2))
+    cv2.imshow('Resized version', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

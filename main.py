@@ -1,5 +1,6 @@
 
 import cv2
+import numpy as np
 import os
 
 video_file = 'Lane Detection Test Video 01.mp4'
@@ -28,7 +29,15 @@ while True:
     # Exercitiul 2
     height, width, _ = frame.shape
     frame = cv2.resize(frame, (width // 2, height // 2))
-    cv2.imshow('Resized version', frame)
+    height, width, _ = frame.shape
+
+    # Exercitiul 3
+    gray_frame = np.zeros((height, width), dtype=np.uint8)
+    for row in range(height):
+        for col in range(width):
+            b, g, r = frame[row, col]
+            gray_frame[row, col] = (int(b) + int(g) + int(r)) // 3
+    cv2.imshow('Grayscale', gray_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

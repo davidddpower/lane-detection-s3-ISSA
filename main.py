@@ -46,9 +46,18 @@ while True:
     trapezoid_points = np.zeros((height, width), dtype=np.uint8)
 
     cv2.fillConvexPoly(trapezoid_points, trapezoid_bounds, 1)
-    cv2.imshow('Trapezoid Version', trapezoid_points * 255)
     road = gray_frame * trapezoid_points
-    cv2.imshow('Road Version', road)
+
+    # Exercitiul 5
+    screen_upper = [(0, 0), (width, 0)]
+    screen_lower = [(0, height), (width, height)]
+
+    frame_bounds = np.array([screen_upper[1], screen_upper[0], screen_lower[0], screen_lower[1]],
+                            dtype=np.float32)
+    trapezoid_bounds_float = np.float32(trapezoid_bounds)
+    matrix = cv2.getPerspectiveTransform(trapezoid_bounds_float, frame_bounds)
+    top_down = cv2.warpPerspective(road, matrix, (width, height))
+    cv2.imshow('Top-Down Version', top_down)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

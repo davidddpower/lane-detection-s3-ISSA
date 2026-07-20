@@ -11,6 +11,12 @@ if not os.path.exists(video_file):
 
 cam = cv2.VideoCapture(video_file)
 
+# Initialize lane points for validation (Exercise 10c)
+left_top = (0, 0)
+left_bottom = (0, 0)
+right_top = (0, 0)
+right_bottom = (0, 0)
+
 while True:
     ret, frame = cam.read()
 
@@ -32,50 +38,109 @@ while True:
     height, width, _ = frame.shape
 
     # Exercitiul 3
-    gray_frame = np.zeros((height, width), dtype=np.uint8)
-    for row in range(height):
-        for col in range(width):
-            b, g, r = frame[row, col]
-            gray_frame[row, col] = (int(b) + int(g) + int(r)) // 3
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Exercitiul 4
-    upper = [(int(width * 0.45), int(height * 0.75)), (int(width * 0.55), int(height * 0.75))]
-    lower = [(0, height), (width, height)]
+    top_y = int(height * 0.75)
+    upper_left = (int(width * 0.45), top_y)
+    upper_right = (int(width * 0.55), top_y)
+    lower_right = (width - 1, height - 1)
+    lower_left = (0, height - 1)
 
-    trapezoid_bounds = np.array([upper[0], upper[1], lower[0], lower[1]], dtype=np.int32)
+    trapezoid_bounds = np.array([upper_left, upper_right, lower_right, lower_left], dtype=np.int32)
     trapezoid_points = np.zeros((height, width), dtype=np.uint8)
 
     cv2.fillConvexPoly(trapezoid_points, trapezoid_bounds, 1)
     road = gray_frame * trapezoid_points
 
     # Exercitiul 5
-    screen_upper = [(0, 0), (width, 0)]
-    screen_lower = [(0, height), (width, height)]
-
-    frame_bounds = np.array([screen_upper[1], screen_upper[0], screen_lower[0], screen_lower[1]],
-                            dtype=np.float32)
+    frame_bounds = np.array([
+        [0, 0],
+        [width - 1, 0],
+        [width - 1, height - 1],
+        [0, height - 1]
+    ], dtype=np.float32)
     trapezoid_bounds_float = np.float32(trapezoid_bounds)
     matrix = cv2.getPerspectiveTransform(trapezoid_bounds_float, frame_bounds)
     top_down = cv2.warpPerspective(road, matrix, (width, height))
 
     #Exercitiul 6
-    blur_frame = cv2.blur(top_down, ksize=(3, 3))
+    blur_frame = cv2.GaussianBlur(top_down, (5, 5), 0)
 
-    #Exercitiul 7
-    sobel_matrix = np.float32([[-1, -2, -1],
-                                 [0, 0, 0],
-                                 [1, 2, 1]])
+    # Exercitiul 7
+    sobelV_result = cv2.Sobel(blur_frame, cv2.CV_32F, 1, 0, ksize=3)
+    sobelH_result = cv2.Sobel(blur_frame, cv2.CV_32F, 0, 1, ksize=3)
+    combined = cv2.magnitude(sobelV_result, sobelH_result)
 
-    sobel_horizontal = np.transpose(sobel_matrix)
-    blur_frame_float = np.float32(blur_frame)
+    # Exercitiul 8
+    sobel_abs = cv2.normalize(combined, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    _, binarized = cv2.threshold(sobel_abs, 35, 255, cv2.THRESH_BINARY)
 
-    sobelV_result = cv2.filter2D(blur_frame_float, -1, sobel_matrix)
-    sobelH_result = cv2.filter2D(blur_frame_float, -1, sobel_horizontal)
+    cv2.imshow('Binarized Version', binarized)
 
-    cv2.imshow('Sobel Vertical', cv2.convertScaleAbs(sobelV_result))
-    cv2.imshow('Sobel Horizontal', cv2.convertScaleAbs(sobelH_result))
-    combined = np.sqrt(sobelV_result ** 2 + sobelH_result ** 2)
-    cv2.imshow('Sobel Version', cv2.convertScaleAbs(combined))
+    # Exercitiul 9
+    cleaned = binarized.copy()
+    margin = int(width * 0.05)
+    cleaned[:, :margin] = 0
+    cleaned[:, width - margin:] = 0
+    cv2.imshow('Cleaned', cleaned)
+
+    left_half = cleaned[:, :width // 2]
+    right_half = cleaned[:, width // 2:]
+    
+    left_points = np.argwhere(left_half > 0)
+    right_points = np.argwhere(right_half > 0)
+    
+    left_ys = left_points[:, 0]
+    left_xs = left_points[:, 1]
+    right_ys = right_points[:, 0]
+    right_xs = right_points[:, 1] + width // 2
+
+    # Exercitiul 10
+    def fit_lane(xs, ys):
+        if len(xs) < 2:
+            return None
+        coeffs = np.polynomial.polynomial.polyfit(xs, ys, 1)
+        b, a = coeffs[0], coeffs[1]
+
+        if abs(a) < 0.1:
+            return None
+         
+        return a, b
+    
+    left_coeffs = fit_lane(left_xs, left_ys)
+    right_coeffs = fit_lane(right_xs, right_ys)
+    
+    def get_line_points(coeffs, height, width, prev_top, prev_bottom):
+        if coeffs is None:
+            return prev_top, prev_bottom
+        
+        a, b = coeffs
+        
+        y1 = 0
+        y2 = height - 1
+        
+        x1 = int((y1 - b) / a) if a != 0 else 0
+        x2 = int((y2 - b) / a) if a != 0 else 0
+        
+        if x1 < 0 or x1 >= width or x2 < 0 or x2 >= width:
+            return prev_top, prev_bottom
+        
+        return (x1, y1), (x2, y2)
+    
+    left_top, left_bottom = get_line_points(left_coeffs, height, width, left_top, left_bottom)
+    right_top, right_bottom = get_line_points(right_coeffs, height, width, right_top, right_bottom)
+    
+    lines_frame = cv2.cvtColor(cleaned, cv2.COLOR_GRAY2BGR)
+    
+    cv2.line(lines_frame, left_top, left_bottom, (200, 0, 0), 5)
+    cv2.line(lines_frame, right_top, right_bottom, (100, 0, 0), 5)
+    
+    cv2.line(lines_frame, (width // 2, 0), (width // 2, height), (255, 0, 0), 1)
+    
+    cv2.imshow('Lines', lines_frame)
+
+    cv2.imshow('Original', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

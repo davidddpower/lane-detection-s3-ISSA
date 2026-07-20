@@ -57,7 +57,10 @@ while True:
     trapezoid_bounds_float = np.float32(trapezoid_bounds)
     matrix = cv2.getPerspectiveTransform(trapezoid_bounds_float, frame_bounds)
     top_down = cv2.warpPerspective(road, matrix, (width, height))
-    cv2.imshow('Top-Down Version', top_down)
+
+    #Exercitiul 6
+    blur_frame = cv2.blur(top_down, ksize=(3, 3))
+    cv2.imshow('Blur version', blur_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

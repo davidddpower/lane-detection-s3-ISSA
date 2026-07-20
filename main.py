@@ -37,7 +37,18 @@ while True:
         for col in range(width):
             b, g, r = frame[row, col]
             gray_frame[row, col] = (int(b) + int(g) + int(r)) // 3
-    cv2.imshow('Grayscale', gray_frame)
+
+    # Exercitiul 4
+    upper = [(int(width * 0.45), int(height * 0.75)), (int(width * 0.55), int(height * 0.75))]
+    lower = [(0, height), (width, height)]
+
+    trapezoid_bounds = np.array([upper[0], upper[1], lower[0], lower[1]], dtype=np.int32)
+    trapezoid_points = np.zeros((height, width), dtype=np.uint8)
+
+    cv2.fillConvexPoly(trapezoid_points, trapezoid_bounds, 1)
+    cv2.imshow('Trapezoid Version', trapezoid_points * 255)
+    road = gray_frame * trapezoid_points
+    cv2.imshow('Road Version', road)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
